@@ -84,62 +84,7 @@ namespace backupFolders{
         the filtered files and folders, to copy each folder/file into a directory with the same name in the destination location 
         (e.g. E:\old_hp_pc_data)
     */
-    public class CopyDirectories
-    {
-        public static void CopyDirectory(string sourceDir, string destDir)
-        {
-            Directory.CreateDirectory(destDir);
-
-            // Copy files
-            string[] files;
-            try
-            {
-                files = Directory.GetFiles(sourceDir);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                Console.WriteLine($"[Skipped: No access to files in {sourceDir}]");
-                return;
-            }
-            foreach (var file in files)
-            {
-                try
-                {
-                    string destFile = Path.Combine(destDir, Path.GetFileName(file));
-                    File.Copy(file, destFile, overwrite: true);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[Skipped: Error copying {file}: {ex.Message}]");
-                }
-            }
-
-            // Copy subdirectories recursively
-            string[] subdirs;
-            try
-            {
-                subdirs = Directory.GetDirectories(sourceDir);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                Console.WriteLine($"[Skipped: No access to subdirs in {sourceDir}]");
-                return;
-            }
-            foreach (var subdir in subdirs)
-            {
-                try
-                {
-                    string destSubDir = Path.Combine(destDir, Path.GetFileName(subdir));
-                    CopyDirectory(subdir, destSubDir);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[Skipped: Error copying subdir {subdir}: {ex.Message}]");
-                }
-            }
-        }
-
-    }
+    
 
     //class which contains a public static method that renders a summary table that is displayed in console to help user decide which hidden files/folders to backup
     public class Table
@@ -192,8 +137,9 @@ namespace backupFolders{
     {
         static void Main(string[] args)
         {
-            //declare the output array
-            string[] foldersToCopy;
+            //declare the output list
+            List<string> elementsToCopy = new List<string>();
+
 
             //extract the string file path of the root folder for current user (e.g C:\Users\<username>)
             string userFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -256,7 +202,7 @@ namespace backupFolders{
                     if (allFiles.Length == ZERO && allSubFolders.Length == ZERO)
                     {
                         isEmpty = true;
-                    }
+                    }//resume here
 
                 }
                 catch (Exception ex)
@@ -364,10 +310,19 @@ namespace backupFolders{
                     prompt = $"\n{appendix} Do you wish to backup this folder:{folder}? Enter Y or N:";
                 }
                 char selectedChar = InputValidator.ValidateChar(prompt, YES, NO);
-                if (selectedChar != YES)
+                if (selectedChar == YES)
                 {
-                    //remove folder from filtered list
-                    folderList.RemoveAt(i);
+                    //construct the full file path 
+                    string fullPath = Path.Combine(userFolder, folder);
+
+                    //check it
+                    WriteLine("");
+                    WriteLine($"Constructed path for folder: {folder}");
+                    WriteLine(fullPath);
+
+                    //add it to output list
+                    elementsToCopy.Add(fullPath);
+
                 }
             }
 
@@ -386,135 +341,48 @@ namespace backupFolders{
                     prompt = $"\n{appendix}Do you wish to backup this file:{file}? Enter Y or N:";
                 }
                 char selectedChar = InputValidator.ValidateChar(prompt, YES, NO);
-                if (selectedChar != YES)
+                if (selectedChar == YES)
                 {
-                    //remove file from filtered list
-                    fileList.RemoveAt(i);
+                    //construct the full file path 
+                    string fullPath = Path.Combine(userFolder, file);
+
+                    //check it
+                    WriteLine("");
+                    WriteLine($"Constructed path for top-level file: {file}");
+                    WriteLine(fullPath);
+
+                    //add it to output list
+                    elementsToCopy.Add(fullPath);
+
                 }
             }
+
+
 
             /* 
-                Now up to this point, the Program has obtained a fully filtered list of strings (fileList, folderList) which
+                Now up to this point, the Program has obtained a fully filtered list of strings (elementsToCopy) which
                 represent all the of the files/folders in the root C:\\ user account that the user wishes to back up.
-                Next, we need to execute the backup.
+                To finish up, we need to:
+                1- obtain a folder name for the new folder into which the folders, and files 
+                will be copied into. We should output this for use in the batch file.
+                2- write the elements to copy to a .txt file that can be used by the batch script
             */
 
-            //Choose or prompt for a destination directory (e.g. external drive path, or a backup folder like E:\Backup_2025-10-02)
+            //1-Choose or prompt for a destination directory (e.g. external drive path, or a backup folder like E:\Backup_2025-10-02)
             string destPrompt = "Please enter the name of the new folder which will be created in the destination drive to store backed up files/folders";
-            string newFolder = InputValidator.ValidateString(destPrompt, "");
+            string destFolder = InputValidator.ValidateString(destPrompt, "");
 
-            //START check that drive exists and is writable
-            string driveLetter = @"E:\";
-            string destinationFolder = Path.Combine(driveLetter, newFolder); // e.g. backupRoot = "E:\old_pc_data"
+            //2-
+            // Output file path (e.g., "elements_to_copy.txt")
+            string outputFileName = "elements_to_copy.txt";
+            string outputPath = Path.Combine(userFolder, outputFileName);
 
-            bool driveExists = Directory.Exists(driveLetter);
-            bool driveReady = false;
+            //check outputPath. It should be: "C:\Users\natha\elements_to_copy.txt"
+            WriteLine("");
+            WriteLine($"Check output path: {outputPath}");
 
-            try
-            {
-                driveReady = new DriveInfo(driveLetter).IsReady;
-            }
-            catch
-            {
-                driveReady = false;
-            }
-
-            if (!driveExists || !driveReady)
-            {
-                Console.WriteLine("Destination drive does not exist or is not ready.");
-                // handle error...
-            }
-            else
-            {
-                Directory.CreateDirectory(destinationFolder); //If the directory does not exist already, it is created here
-                string testPath = Path.Combine(destinationFolder, "temp_file.txt");
-                try
-                {
-                    File.WriteAllText(testPath, "test");
-                    File.Delete(testPath);
-                    Console.WriteLine("Destination is writable.");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("Cannot write to the destination folder: " + ex.Message);
-                    // handle error...
-                }
-            }
-
-            //END check
-
-            //Now finally we are ready to loop through the filtered files and folders and copy them over to selected destination
-
-            //first let's copy the files over which is easy
-            foreach (string file in fileList)
-            {
-                string fileName = Path.GetFileName(file); // just the filename, not the full path
-                string destPath = Path.Combine(destinationFolder, fileName);
-                File.Copy(file, destPath, overwrite: true); //file will be overwritten if it already exists in the destination location
-            }
-
-            //and the folders next
-            foreach (string folder in folderList)
-            {
-                Console.WriteLine($"Copying: {folder}");
-                string folderName = Path.GetFileName(folder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-                string destFolder = Path.Combine(destinationFolder, folderName);
-                try
-                {
-                    CopyDirectories.CopyDirectory(folder, destFolder); // Your recursive or iterative copy function
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[Skipped: Error copying {folder}: {ex.Message}]");
-                }
-            }
-
-            //finally we should iterate over each folder and file in the destination folder and check if they are present in the filtered lists
-            //display a success message if they are
-
-            //folders
-            bool foldersCopied = true;
-            string[] copiedFolders = Directory.GetDirectories(destinationFolder);
-            foreach (string folder in copiedFolders)
-            {
-                if (!folderList.Contains(folder))
-                {
-                    foldersCopied = false;
-                }
-            }
-
-            if (foldersCopied)
-            {
-                //success
-                WriteLine("Success! All folders have been copied into destination folder.");
-            }
-            else
-            {
-                //failure
-                WriteLine("Failure. One or more folders failed to copy.");
-            }
-
-            //files
-            bool filesCopied = true;
-            string[] copiedFiles = Directory.GetFiles(destinationFolder); 
-            foreach (string file in copiedFiles)
-            {
-                if (!fileList.Contains(file))
-                {
-                    filesCopied = false;
-                }
-            }
-
-            if (filesCopied)
-            {
-                //success
-                WriteLine("Success! All top-level files have been copied into destination folder.");
-            }
-            else
-            {
-                //failure
-                WriteLine("Failure. One or more top-level files failed to copy.");
-            }
+            // Write each element to the .txt file as a new line
+            File.WriteAllLines(outputPath, elementsToCopy);
             
         }
     }
