@@ -185,24 +185,24 @@ namespace backupFolders{
 
                     //check if any files are hidden files
                     //I assume the code below filters the allFiles array to select only hidden files
-                    bool hasHiddenFiles = allFiles.Any(f => (File.GetAttributes(f) & FileAttributes.Hidden) != 0);
+                    int hiddenFileCount = allFiles.Count(f => (File.GetAttributes(f) & FileAttributes.Hidden) != 0);
 
                     //also check for hidden folders
-                    bool hasHiddenSubFolders = allSubFolders.Any(sub =>
+                    int hiddenFoldersCount = allSubFolders.Count(sub =>
                         (File.GetAttributes(sub) & FileAttributes.Hidden) != 0
                     );
 
                     //if folder contains hidden elements, add them to the list
-                    if (hasHiddenFiles || hasHiddenSubFolders)
+                    if (hiddenFileCount > ZERO || hiddenFoldersCount > ZERO)
                     {
                         foldersWithHiddenElements.Add(folder);
                     }
 
-                    //if the folder is empty, update isEmpty
-                    if (allFiles.Length == ZERO && allSubFolders.Length == ZERO)
+                    //if the folder is empty, or empty with some hidden elements, update isEmpty
+                    if (allFiles.Length == hiddenFileCount && allSubFolders.Length == hiddenFoldersCount)
                     {
                         isEmpty = true;
-                    }//resume here
+                    }
 
                 }
                 catch (Exception ex)
@@ -381,8 +381,39 @@ namespace backupFolders{
             WriteLine("");
             WriteLine($"Check output path: {outputPath}");
 
-            // Write each element to the .txt file as a new line
-            File.WriteAllLines(outputPath, elementsToCopy);
+            // check if there is already a elements_to_copy.txt file in specified location
+            if (File.Exists(outputPath))
+            {
+                Console.WriteLine($"{outputFileName} already exists at {outputPath}. It will be overwritten.");
+                // Optionally, prompt the user for confirmation here
+            }
+
+
+            /* 
+                next we have to construct the output .txt file so that it is in the following form.
+                the first line of the file needs to contain the name of the backup folder which the user chose
+                and stored in the destFolder variable. The subsequent lines contain the paths of the files/folders
+                which the batch script must copy. EG:
+            
+                Backup_2025-10-06
+                C:\Users\natha\Documents
+                C:\Users\natha\Pictures
+                C:\Users\natha\file.txt
+
+                To do this we use the following code which creates an output list, adds the destFolder
+                string on the first line, then adds the elementsToCopy paths assigning each elements (...)
+                to a new line.
+            */
+
+            List<string> outputLines = new List<string>();
+            outputLines.Add(destFolder); // First line: destination folder
+            outputLines.AddRange(elementsToCopy); // Remaining lines: paths to copy
+
+            // This will overwrite the file if it exists, or create it if it doesn't
+            // Writes each element to the .txt file as a new line
+            File.WriteAllLines(outputPath, outputLines);
+
+            
             
         }
     }
