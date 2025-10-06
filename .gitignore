@@ -1,0 +1,31 @@
+# Build Folders
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# VS Code settings
+.vscode/
+
+# Visual Studio settings
+.vs/
+
+# NuGet
+*.nupkg
+packages/
+*.snupkg
+
+# Others
+*.log
+*.DS_Store
+*.sln.ide
+*.cache
+*.pdb
+
+# Rider
+.idea/
+*.sln.iml
