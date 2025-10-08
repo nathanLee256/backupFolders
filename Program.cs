@@ -43,6 +43,38 @@ namespace backupFolders{
             return userInput;
         }
 
+        public static char ValidateDrive(string userPrompt)
+    {
+        char userInput = '\0';
+        bool isValid = false;
+
+        // Loop until the user enters a valid input
+        while (!isValid)
+        {
+            Console.WriteLine($"{userPrompt}:");
+            string input = Console.ReadLine();
+
+            // Validate if the input is a single character
+            if (char.TryParse(input, out userInput))
+            {
+                // Check if the input is a capital letter (A-Z)
+                if (userInput >= 'A' && userInput <= 'Z')
+                {
+                    isValid = true; // Input is valid, exit the loop
+                }
+                else
+                {
+                    Console.WriteLine("Invalid input. Please enter a capital letter (A-Z).");
+                }
+            }
+            else
+            {
+                Console.WriteLine("Invalid input. Please enter a single capital letter (A-Z).");
+            }
+        }
+        return userInput;
+    }
+
         public static string ValidateString(string userPrompt, string notAllowed = "")
         {
             string userInput = "";
@@ -253,6 +285,8 @@ namespace backupFolders{
                     if ((attributes & FileAttributes.Hidden) != 0)
                     {
                         topLevelHiddenFiles.Add(file);
+                        fileList.RemoveAt(i);
+                        break;
                     }
 
                     //remove file if it starts with "." char
@@ -365,19 +399,38 @@ namespace backupFolders{
                 To finish up, we need to:
                 1- obtain a folder name for the new folder into which the folders, and files 
                 will be copied into. We should output this for use in the batch file.
+                1a- obtain from the user, the drive letter of their external storage device they want to copy to
                 2- write the elements to copy to a .txt file that can be used by the batch script
             */
+
+            //0
+            //1a
+            string drivePrompt = "Please enter the drive letter of your external storage device (e.g. E for E:\\ drive):";
+            char destDrive = InputValidator.ValidateDrive(drivePrompt);
+            string driveRoot = destDrive + @":\"; // e.g., "E:\"
+
 
             //1-Choose or prompt for a destination directory (e.g. external drive path, or a backup folder like E:\Backup_2025-10-02)
             string destPrompt = "Please enter the name of the new folder which will be created in the destination drive to store backed up files/folders";
             string destFolder = InputValidator.ValidateString(destPrompt, "");
+            string checkPath = Path.Combine(driveRoot, destFolder);
+
+            // Check if the directory exists
+            while(Directory.Exists(checkPath))
+            {
+                Console.WriteLine($"Folder '{destFolder}' already exists in the root folder of your storage device.");
+                string rePromptForFolder = "Please enter a unique name of the new folder which will be created in the destination drive to store backed up files/folders";
+                destFolder = InputValidator.ValidateString(rePromptForFolder, "");
+                checkPath = Path.Combine(driveRoot, destFolder);
+            }
+            
 
             //2-
             // Output file path (e.g., "elements_to_copy.txt")
             string outputFileName = "elements_to_copy.txt";
-            string outputPath = Path.Combine(userFolder, outputFileName);
+            string outputPath = Path.Combine(Directory.GetCurrentDirectory(), outputFileName);
 
-            //check outputPath. It should be: "C:\Users\natha\elements_to_copy.txt"
+            //check outputPath. It should be: "C:\Users\natha\C#\backupFolders\elements_to_copy.txt"
             WriteLine("");
             WriteLine($"Check output path: {outputPath}");
 
@@ -406,7 +459,8 @@ namespace backupFolders{
             */
 
             List<string> outputLines = new List<string>();
-            outputLines.Add(destFolder); // First line: destination folder
+            outputLines.Add(destDrive.ToString()); // e.g "E"
+            outputLines.Add(destFolder); // First line: destination folder e.g. "hp_envy_backup"
             outputLines.AddRange(elementsToCopy); // Remaining lines: paths to copy
 
             // This will overwrite the file if it exists, or create it if it doesn't
