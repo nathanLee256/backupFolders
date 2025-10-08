@@ -281,13 +281,69 @@ namespace backupFolders{
                     //check if file is hidden by checking its attributes
                     FileAttributes attributes = File.GetAttributes(file);
 
+                    /* 
+                        enum FileAttributes
+                        {
+                            ReadOnly = 1,               // 0000 0000 0000 0001
+                            Hidden = 2,                 // 0000 0000 0000 0010
+                            System = 4,                 // 0000 0000 0000 0100
+                            Directory = 16,             // 0000 0000 0001 0000
+                            Archive = 32,               // 0000 0000 0010 0000
+                            Device = 64,                // 0000 0000 0100 0000
+                            Normal = 128,               // 0000 0000 1000 0000
+                            Temporary = 256,            // 0000 0001 0000 0000
+                            SparseFile = 512,           // 0000 0010 0000 0000
+                            ReparsePoint = 1024,        // 0000 0100 0000 0000
+                            Compressed = 2048,          // 0000 1000 0000 0000
+                            Offline = 4096,             // 0001 0000 0000 0000
+                            NotContentIndexed = 8192,   // 0010 0000 0000 0000
+                            Encrypted = 16384,          // 0100 0000 0000 0000
+                            IntegrityStream = 32768,    // 1000 0000 0000 0000
+                            NoScrubData = 131072   // 0010 0000 0000 0000 0000
+                        }
+
+                        NB: think of a C# enum like a mapping object in python or JS, except that the value stored in 
+                        each object property is a constant. The FileAttributes enum shown above is basically a const object
+                        with a number of properties that store integer values that increase by 2^x. For example, from Archive 32
+                        to Device 64, the value (64) has increased by 2^5 (32). The int values stored in the enum increase
+                        in this way to allow the binary numbers to be compared easily using the bitwise OR comparison. IE
+                        so each attribute can be represented by a unique bit in a binary number. This allows multiple attributes 
+                        to be combined and checked efficiently using bitwise operations.
+
+                        FileAttributes attributes = File.GetAttributes(file);
+
+                        Therefore this method first checks the file to see which of the attribute flags (as defined in the enum)
+                        are present in the file param. It then "switches on" each of these attributes (e.g. FileAttributes.hidden) . 
+                        All FileAttributes properties are initially off.The method then returns an integer value which is the result 
+                        of the OR bitwise comparison between the binary representations of each of those flags that have been switched on. 
+                        This int is assigned to attributes. 
+
+                    */
+
                     // Check if the Hidden attribute is set
-                    if ((attributes & FileAttributes.Hidden) != 0)
+                    if ((attributes & FileAttributes.Hidden) == FileAttributes.Hidden)
                     {
                         topLevelHiddenFiles.Add(file);
                         fileList.RemoveAt(i);
                         break;
                     }
+                    /* 
+                        EG: so lets say we run this: FileAttributes attributes = File.GetAttributes(file);
+                        and lets say that the file has hidden, read-only and system attributes, the attributes 
+                        variable will be assigned 7 (1+2+4). The first part of the condition above e.g. (attributes & FileAttributes.Hidden)
+                        performs a bitwise AND comparison between the binary representations of 7 and 2 (FileAttributes.Hidden is 
+                        always 2 as defined in the enum):
+
+                            0000 0000 0000 0010   // 2
+                            0000 0000 0000 0111   // 7
+                            --------------------
+                            0000 0000 0000 0010  == 2
+
+                        KP: The AND bitwise comparison between a specific FileAttribute enum flag binary value (e.g. 2) and 
+                        the binary sum of the ON flags (e.g. 7), reveals whether that flag is switched ON if the result of 
+                        the bitwsie AND comparison is equal to the originla value. In this case
+                        it inidicates whether the specified file has a .hidden attribute.
+                    */
 
                     //remove file if it starts with "." char
                     string fileName = Path.GetFileName(file);
