@@ -29,3 +29,6 @@ packages/
 # Rider
 .idea/
 *.sln.iml
+
+#ignore the elements_to_copy.txt file (this is where the .txt file output from the C# program is saved every time)
+elements_to_copy.txt
